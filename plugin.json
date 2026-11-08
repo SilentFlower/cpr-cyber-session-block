@@ -1,0 +1,38 @@
+{
+  "manifestVersion": 2,
+  "publisher": "silentflower",
+  "name": "cyber-session-block",
+  "displayName": "Cyber 会话封禁",
+  "version": "0.1.2",
+  "description": "cyber_policy 命中后的会话限时封禁与记录",
+  "license": "Apache-2.0",
+  "engines": { "codex-proxy-rs": ">=3.43.0" },
+  "main": "bin/cpr-cyber-session-block",
+  "runtime": "trustedProcess",
+  "resources": {
+    "LICENSE": "text/plain",
+    "NOTICE": "text/plain",
+    "THIRD_PARTY_LICENSES.txt": "text/plain",
+    "web/index.html": "text/html",
+    "web/app.js": "application/javascript",
+    "web/app.css": "text/css"
+  },
+  "contributes": {
+    "middleware": { "version": 6, "stages": ["request", "attempt"], "inputFormats": ["openai"], "outputFormats": ["openai"] },
+    "retry_policy": { "version": 2 },
+    "observer": { "version": 2 },
+    "management": { "version": 2 },
+    "maintenance": {}
+  },
+  "configurationSchema": {
+    "type": "object",
+    "properties": {
+      "blockSeconds": { "type": "integer", "title": "封禁时长（秒）", "description": "命中 cyber_policy 后限制同一会话，期间重试不延长封禁", "minimum": 1, "maximum": 2592000, "default": 3600 }
+    },
+    "required": ["blockSeconds"],
+    "additionalProperties": false
+  },
+  "state": [
+    { "namespace": "blocks", "schemaVersion": 2, "schema": { "type": "object" }, "maximumRecords": 64, "maximumBytes": 16777216, "maximumValueBytes": 262144, "migratesFrom": [1] }
+  ]
+}
