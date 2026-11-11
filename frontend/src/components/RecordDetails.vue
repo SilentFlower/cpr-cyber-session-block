@@ -5,7 +5,7 @@ defineProps<{ record: BlockRecord }>()
 </script>
 
 <template>
-  <dl :id="`record-${record.id}`" class="grid gap-x-6 gap-y-4 p-3 text-z-sm sm:grid-cols-2">
+  <dl :id="`record-${record.id}`" class="grid gap-x-6 gap-y-4 rounded-z bg-z-fill-alter p-4 text-z-sm sm:grid-cols-2">
     <div>
       <dt class="text-z-text-secondary">
         会话摘要
@@ -29,7 +29,7 @@ defineProps<{ record: BlockRecord }>()
     </div>
     <div>
       <dt class="text-z-text-secondary">
-        账号 ID
+        触发账号 ID
       </dt><dd class="mt-1 break-all font-mono text-z-xs">
         {{ record.accountId ?? '未知' }}
       </dd>
@@ -50,16 +50,23 @@ defineProps<{ record: BlockRecord }>()
     </div>
     <div>
       <dt class="text-z-text-secondary">
-        到期时间（UTC）
+        触发时间（北京时间）
       </dt><dd class="mt-1">
-        {{ record.expiresTimeUtc }}
+        {{ record.createdTimeDisplay }}
       </dd>
     </div>
-    <div v-if="record.releasedTimeUtc">
+    <div>
       <dt class="text-z-text-secondary">
-        解除时间（UTC）
+        到期时间（北京时间）
       </dt><dd class="mt-1">
-        {{ record.releasedTimeUtc }}
+        {{ record.expiresTimeDisplay }}
+      </dd>
+    </div>
+    <div v-if="record.releasedTimeDisplay">
+      <dt class="text-z-text-secondary">
+        解除时间（北京时间）
+      </dt><dd class="mt-1">
+        {{ record.releasedTimeDisplay }}
       </dd>
     </div>
   </dl>

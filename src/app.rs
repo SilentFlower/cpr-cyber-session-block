@@ -33,7 +33,7 @@ use gateway_plugin_sdk::{
 };
 use serde_json::{Value, from_value, json, to_value, to_vec};
 
-use crate::{management::utc, settings::SettingsControl};
+use crate::{management::beijing, settings::SettingsControl};
 
 // 完成通知可能因过载丢失，只缓存最小归属并限制遗留条目，不能阻断正常模型响应
 const MAXIMUM_TRACKED_REQUESTS: usize = 1024;
@@ -166,8 +166,8 @@ impl App {
                         403,
                         "session_blocked_by_cyber_policy",
                         &format!(
-                            "此会话因 cyber_policy 已封禁，解除时间为 {}。",
-                            utc(record.expires_at_ms)
+                            "此会话因 cyber_policy 已封禁，解除时间为北京时间 {}。",
+                            beijing(record.expires_at_ms)
                         ),
                         Some(record.expires_at_ms),
                     );
@@ -282,8 +282,8 @@ impl App {
                         403,
                         "session_blocked_by_cyber_policy",
                         &format!(
-                            "此会话因 cyber_policy 已封禁，解除时间为 {}。",
-                            utc(record.expires_at_ms)
+                            "此会话因 cyber_policy 已封禁，解除时间为北京时间 {}。",
+                            beijing(record.expires_at_ms)
                         ),
                         Some(record.expires_at_ms),
                     );

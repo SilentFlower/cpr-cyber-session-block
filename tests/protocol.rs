@@ -906,6 +906,11 @@ async fn a_late_confirmed_hit_keeps_expired_history_without_a_new_block() {
     assert!(host.pending().is_empty());
     assert_eq!(host.records()[0]["createdAtMs"], 1000);
     assert_eq!(host.records()[0]["expiresAtMs"], 3_601_000);
+    let (_, view) = host.management(9, "GET", "history", "", None).await;
+    let record = &view["records"][0];
+    assert_eq!(record["createdTimeDisplay"], "1970-01-01 08:00:01");
+    assert_eq!(record["expiresTimeDisplay"], "1970-01-01 09:00:01");
+    assert_eq!(record["createdTimeUtc"], "1970-01-01T00:00:01Z");
 }
 
 #[tokio::test]

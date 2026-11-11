@@ -19,9 +19,9 @@ export interface BlockRecord {
   rejectedRequests: number
   lastRejectedAtMs: number | null
   status: BlockStatus
-  createdTimeUtc: string
-  expiresTimeUtc: string
-  releasedTimeUtc: string | null
+  createdTimeDisplay: string
+  expiresTimeDisplay: string
+  releasedTimeDisplay: string | null
 }
 
 /** 记录页与统计来自同一次后端查询 */
@@ -85,10 +85,10 @@ function record(value: unknown): value is BlockRecord {
       'clientKeyId',
       'requestId',
       'transport',
-      'createdTimeUtc',
-      'expiresTimeUtc',
+      'createdTimeDisplay',
+      'expiresTimeDisplay',
     ].every(key => typeof value[key] === 'string')
-    && ['accountId', 'model', 'releasedTimeUtc'].every(key => value[key] === null || typeof value[key] === 'string')
+    && ['accountId', 'model', 'releasedTimeDisplay'].every(key => value[key] === null || typeof value[key] === 'string')
     && ['createdAtMs', 'expiresAtMs', 'rejectedRequests'].every(key => Number.isSafeInteger(value[key]))
     && ['attemptIndex', 'releasedAtMs', 'lastRejectedAtMs'].every(key => value[key] === null || Number.isSafeInteger(value[key]))
     && ['active', 'expired', 'released'].includes(String(value.status))

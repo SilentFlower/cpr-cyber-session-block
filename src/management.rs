@@ -17,7 +17,7 @@ use gateway_plugin_sdk::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_slice, json, to_value, to_vec};
-use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+use time::{OffsetDateTime, UtcOffset, format_description::well_known::Rfc3339};
 
 use crate::app::{App, wall_ms};
 
@@ -29,7 +29,7 @@ struct ReleaseInput {
     record_id: String,
 }
 
-/// 在持久记录之上附加当前状态及 UTC 展示文本
+/// 补充当前状态和北京时间展示，保留原始时间点及旧版 UTC 字段
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Entry {
@@ -39,6 +39,9 @@ struct Entry {
     created_time_utc: String,
     expires_time_utc: String,
     released_time_utc: Option<String>,
+    created_time_display: String,
+    expires_time_display: String,
+    released_time_display: Option<String>,
 }
 
 /// 声明最小管理路由和随包发布的资源，由宿主提供页面标题
@@ -201,6 +204,9 @@ async fn history(app: &App, call: &TypedCall<ManagementRequest>) -> Result<Value
             created_time_utc: utc(record.created_at_ms),
             expires_time_utc: utc(record.expires_at_ms),
             released_time_utc: record.released_at_ms.map(utc),
+            created_time_display: beijing(record.created_at_ms),
+            expires_time_display: beijing(record.expires_at_ms),
+            released_time_display: record.released_at_ms.map(beijing),
             record,
         })
         .collect();
@@ -219,13 +225,33 @@ fn invalid() -> PluginFault {
     fault(ErrorCode::InvalidInput, "管理接口参数无效")
 }
 
-/// 由后端生成 UTC 展示文本，前端只格式化持续时长
+/// 保留历史接口的 UTC 兼容字段
 /// @param milliseconds UTC Unix 毫秒时间
 /// @return 可直接显示的 UTC 时间
-pub(crate) fn utc(milliseconds: u64) -> String {
+fn utc(milliseconds: u64) -> String {
     i64::try_from(milliseconds / 1000)
         .ok()
         .and_then(|seconds| OffsetDateTime::from_unix_timestamp(seconds).ok())
         .and_then(|time| time.format(&Rfc3339).ok())
+        .unwrap_or_else(|| "时间不可用".into())
+}
+
+/// 将 Unix 时间点投影为北京时间，封禁时限仍用原始毫秒计算
+/// @param milliseconds Unix 毫秒时间
+/// @return 北京时间展示文本
+pub(crate) fn beijing(milliseconds: u64) -> String {
+    i64::try_from(milliseconds / 1000)
+        .ok()
+        .and_then(|seconds| OffsetDateTime::from_unix_timestamp(seconds).ok())
+        .and_then(|time| time.checked_to_offset(UtcOffset::from_hms(8, 0, 0).ok()?))
+        .map(|time| {
+            format!(
+                "{} {:02}:{:02}:{:02}",
+                time.date(),
+                time.hour(),
+                time.minute(),
+                time.second()
+            )
+        })
         .unwrap_or_else(|| "时间不可用".into())
 }
