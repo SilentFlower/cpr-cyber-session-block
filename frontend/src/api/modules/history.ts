@@ -11,6 +11,7 @@ export interface BlockRecord {
   requestId: string
   accountId: string | null
   accountName: string | null
+  accountEmail: string | null
   model: string | null
   attemptIndex: number | null
   transport: string
@@ -92,6 +93,7 @@ function record(value: unknown): value is BlockRecord {
     && [
       'accountId',
       'accountName',
+      'accountEmail',
       'model',
       'releasedTimeDisplay',
     ].every(key => value[key] === null || typeof value[key] === 'string')

@@ -32,6 +32,7 @@ defineProps<{ record: BlockRecord }>()
         触发账号
       </dt><dd class="mt-1 break-all text-z-sm">
         {{ record.accountName ?? '名称不可用' }}
+        <span v-if="record.accountEmail && record.accountEmail !== record.accountName" class="mt-1 block text-z-xs text-z-text-secondary">{{ record.accountEmail }}</span>
         <span class="mt-1 block font-mono text-z-xs text-z-text-secondary">{{ record.accountId ?? '未记录账号 ID' }}</span>
       </dd>
     </div>

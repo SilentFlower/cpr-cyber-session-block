@@ -39,6 +39,7 @@ struct Entry {
     record: Record,
     status: &'static str,
     account_name: Option<String>,
+    account_email: Option<String>,
     created_time_utc: String,
     expires_time_utc: String,
     released_time_utc: Option<String>,
@@ -203,7 +204,7 @@ async fn history(app: &App, call: &TypedCall<ManagementRequest>) -> Result<Value
         .skip(offset)
         .take(limit as usize)
         .collect();
-    let account_names = account_names(&call.host, &records).await;
+    let profiles = account_profiles(&call.host, &records).await;
     let records: Vec<Entry> = records
         .into_iter()
         .map(|record| Entry {
@@ -211,8 +212,13 @@ async fn history(app: &App, call: &TypedCall<ManagementRequest>) -> Result<Value
             account_name: record
                 .account_id
                 .as_ref()
-                .and_then(|id| account_names.get(id))
-                .cloned(),
+                .and_then(|id| profiles.get(id))
+                .map(|(name, _)| name.clone()),
+            account_email: record
+                .account_id
+                .as_ref()
+                .and_then(|id| profiles.get(id))
+                .and_then(|(_, email)| email.clone()),
             created_time_utc: utc(record.created_at_ms),
             expires_time_utc: utc(record.expires_at_ms),
             released_time_utc: record.released_at_ms.map(utc),
@@ -227,7 +233,10 @@ async fn history(app: &App, call: &TypedCall<ManagementRequest>) -> Result<Value
     )
 }
 
-async fn account_names(host: &HostClient, records: &[Record]) -> BTreeMap<String, String> {
+async fn account_profiles(
+    host: &HostClient,
+    records: &[Record],
+) -> BTreeMap<String, (String, Option<String>)> {
     let mut needed: BTreeSet<&str> = records
         .iter()
         .filter_map(|record| record.account_id.as_deref())
@@ -250,13 +259,14 @@ async fn account_names(host: &HostClient, records: &[Record]) -> BTreeMap<String
             };
             for account in page.accounts {
                 if needed.remove(account.account_id.as_str()) {
+                    let email = account.email.filter(|email| !email.trim().is_empty());
                     let name = if account.name.trim().is_empty() {
-                        account.email.unwrap_or_default()
+                        email.clone().unwrap_or_default()
                     } else {
                         account.name
                     };
                     if !name.trim().is_empty() {
-                        names.insert(account.account_id, name);
+                        names.insert(account.account_id, (name, email));
                     }
                 }
             }

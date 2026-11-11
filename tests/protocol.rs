@@ -43,6 +43,7 @@ struct Host {
     puts: usize,
     version: u64,
     account_name: Option<String>,
+    account_email: Option<String>,
     fail_accounts: bool,
     account_lookups: usize,
 }
@@ -80,6 +81,7 @@ impl Host {
             puts: 0,
             version: 100,
             account_name: Some("测试账号名称".into()),
+            account_email: Some("test@example.test".into()),
             fail_accounts: false,
             account_lookups: 0,
         };
@@ -296,7 +298,7 @@ impl Host {
                     let accounts = if second {
                         self.account_name.as_ref().map(|name| vec![json!({
                             "account_id":"account-test","provider_id":"openai","name":name,
-                            "email":"test@example.test","enabled":false,"group_ids":[],"updated_at_ms":0
+                            "email":self.account_email,"enabled":false,"group_ids":[],"updated_at_ms":0
                         })]).unwrap_or_default()
                     } else {
                         vec![json!({
@@ -1144,20 +1146,33 @@ async fn history_resolves_current_names_and_keeps_records_when_accounts_are_miss
     host.hit().await;
     let (_, named) = host.management(5, "GET", "history", "", None).await;
     assert_eq!(named["records"][0]["accountName"], "测试账号名称");
+    assert_eq!(named["records"][0]["accountEmail"], "test@example.test");
     assert_eq!(named["records"][0]["accountId"], "account-test");
     assert_eq!(host.account_lookups, 2);
     host.account_name = Some("修改后的名称".into());
     let (_, renamed) = host.management(7, "GET", "history", "", None).await;
     assert_eq!(renamed["records"][0]["accountName"], "修改后的名称");
+    host.account_email = Some("renamed@example.test".into());
+    let (_, changed_email) = host.management(9, "GET", "history", "", None).await;
+    assert_eq!(
+        changed_email["records"][0]["accountEmail"],
+        "renamed@example.test"
+    );
+    host.account_email = None;
+    let (_, no_email) = host.management(11, "GET", "history", "", None).await;
+    assert!(no_email["records"][0]["accountEmail"].is_null());
+    assert_eq!(no_email["records"][0]["accountName"], "修改后的名称");
+    host.account_email = Some("test@example.test".into());
     host.account_name = Some("".into());
-    let (_, unnamed) = host.management(9, "GET", "history", "", None).await;
+    let (_, unnamed) = host.management(13, "GET", "history", "", None).await;
     assert_eq!(unnamed["records"][0]["accountName"], "test@example.test");
     host.account_name = None;
-    let (_, deleted) = host.management(11, "GET", "history", "", None).await;
+    let (_, deleted) = host.management(15, "GET", "history", "", None).await;
     assert!(deleted["records"][0]["accountName"].is_null());
+    assert!(deleted["records"][0]["accountEmail"].is_null());
     assert_eq!(deleted["records"][0]["accountId"], "account-test");
     host.fail_accounts = true;
-    let (response, failed) = host.management(13, "GET", "history", "", None).await;
+    let (response, failed) = host.management(17, "GET", "history", "", None).await;
     assert_eq!(response["status"], 200);
     assert_eq!(failed["records"].as_array().unwrap().len(), 1);
     assert!(failed["records"][0]["accountName"].is_null());
