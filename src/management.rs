@@ -1,19 +1,21 @@
 //! 为隔离扩展页提供分页记录、精确解除和当前实例参数管理
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::time::Duration;
 
 use cpr_cyber_session_block::{fault, store::Record};
 use form_urlencoded::parse;
 use gateway_plugin_sdk::{
     ErrorCode, PluginFault,
     call::{
+        data::AccountFactsQuery,
         management::{
             ManagementPage, ManagementRegistration, ManagementRequest, ManagementResource,
             ManagementResponse, ManagementRoute,
         },
         middleware::MiddlewareHeader,
     },
-    client::{TypedCall, TypedReply},
+    client::{HostClient, TypedCall, TypedReply},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_slice, json, to_value, to_vec};
@@ -36,6 +38,7 @@ struct Entry {
     #[serde(flatten)]
     record: Record,
     status: &'static str,
+    account_name: Option<String>,
     created_time_utc: String,
     expires_time_utc: String,
     released_time_utc: Option<String>,
@@ -195,12 +198,21 @@ async fn history(app: &App, call: &TypedCall<ManagementRequest>) -> Result<Value
     let page = page.min(pages as u64);
     let offset =
         usize::try_from(page.saturating_sub(1).saturating_mul(limit)).map_err(|_| invalid())?;
-    let records: Vec<Entry> = records
+    let records: Vec<Record> = records
         .into_iter()
         .skip(offset)
         .take(limit as usize)
+        .collect();
+    let account_names = account_names(&call.host, &records).await;
+    let records: Vec<Entry> = records
+        .into_iter()
         .map(|record| Entry {
             status: record.status(now),
+            account_name: record
+                .account_id
+                .as_ref()
+                .and_then(|id| account_names.get(id))
+                .cloned(),
             created_time_utc: utc(record.created_at_ms),
             expires_time_utc: utc(record.expires_at_ms),
             released_time_utc: record.released_at_ms.map(utc),
@@ -213,6 +225,51 @@ async fn history(app: &App, call: &TypedCall<ManagementRequest>) -> Result<Value
     Ok(
         json!({"records":records,"pagination":{"page":page,"pageSize":limit,"total":total},"asOf":as_of,"serverTimeMs":now,"summary":{"active":active_count,"retained":retained_count,"pending":reconciled.waiting},"storage":{"maximumBytes":16777216,"maximumBucketBytes":262144,"automaticDeletion":false}}),
     )
+}
+
+async fn account_names(host: &HostClient, records: &[Record]) -> BTreeMap<String, String> {
+    let mut needed: BTreeSet<&str> = records
+        .iter()
+        .filter_map(|record| record.account_id.as_deref())
+        .collect();
+    let mut names = BTreeMap::new();
+    // 名称仅用于当前页面展示，读取失败或账号被删除时保留历史和稳定 ID
+    // 每页账号去重后读取，不为每条封禁逐个发起管理请求
+    let lookup = async {
+        let mut cursor = None;
+        while !needed.is_empty() {
+            let Ok(page) = host
+                .account_facts(AccountFactsQuery {
+                    provider_id: None,
+                    cursor: cursor.clone(),
+                    limit: 200,
+                })
+                .await
+            else {
+                break;
+            };
+            for account in page.accounts {
+                if needed.remove(account.account_id.as_str()) {
+                    let name = if account.name.trim().is_empty() {
+                        account.email.unwrap_or_default()
+                    } else {
+                        account.name
+                    };
+                    if !name.trim().is_empty() {
+                        names.insert(account.account_id, name);
+                    }
+                }
+            }
+            match page.next_cursor {
+                Some(next) if cursor.as_ref().is_none_or(|previous| next > *previous) => {
+                    cursor = Some(next)
+                }
+                _ => break,
+            }
+        }
+    };
+    let _ = tokio::time::timeout(Duration::from_secs(2), lookup).await;
+    names
 }
 
 fn number(pairs: &BTreeMap<String, String>, name: &str, default: u64) -> Result<u64, PluginFault> {

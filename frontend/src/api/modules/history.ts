@@ -10,6 +10,7 @@ export interface BlockRecord {
   clientKeyId: string
   requestId: string
   accountId: string | null
+  accountName: string | null
   model: string | null
   attemptIndex: number | null
   transport: string
@@ -88,7 +89,12 @@ function record(value: unknown): value is BlockRecord {
       'createdTimeDisplay',
       'expiresTimeDisplay',
     ].every(key => typeof value[key] === 'string')
-    && ['accountId', 'model', 'releasedTimeDisplay'].every(key => value[key] === null || typeof value[key] === 'string')
+    && [
+      'accountId',
+      'accountName',
+      'model',
+      'releasedTimeDisplay',
+    ].every(key => value[key] === null || typeof value[key] === 'string')
     && ['createdAtMs', 'expiresAtMs', 'rejectedRequests'].every(key => Number.isSafeInteger(value[key]))
     && ['attemptIndex', 'releasedAtMs', 'lastRejectedAtMs'].every(key => value[key] === null || Number.isSafeInteger(value[key]))
     && ['active', 'expired', 'released'].includes(String(value.status))

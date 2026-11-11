@@ -215,7 +215,7 @@ function details(id: string) {
             </div>
           </template>
           <template #accountId="{ row }">
-            <span class="block truncate font-mono text-z-xs" :title="row.accountId ?? undefined">{{ row.accountId ?? '未记录' }}</span>
+            <span class="block truncate text-z-sm font-emphasis" :title="row.accountId ?? undefined">{{ row.accountName ?? row.accountId ?? '未记录' }}</span>
           </template>
           <template #status="{ row }">
             <ZTag :type="row.status === 'active' ? 'warning' : 'info'" size="small">

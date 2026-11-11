@@ -29,9 +29,10 @@ defineProps<{ record: BlockRecord }>()
     </div>
     <div>
       <dt class="text-z-text-secondary">
-        触发账号 ID
-      </dt><dd class="mt-1 break-all font-mono text-z-xs">
-        {{ record.accountId ?? '未知' }}
+        触发账号
+      </dt><dd class="mt-1 break-all text-z-sm">
+        {{ record.accountName ?? '名称不可用' }}
+        <span class="mt-1 block font-mono text-z-xs text-z-text-secondary">{{ record.accountId ?? '未记录账号 ID' }}</span>
       </dd>
     </div>
     <div>

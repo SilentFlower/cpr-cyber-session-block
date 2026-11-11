@@ -42,6 +42,9 @@ struct Host {
     fail_get: bool,
     puts: usize,
     version: u64,
+    account_name: Option<String>,
+    fail_accounts: bool,
+    account_lookups: usize,
 }
 
 impl Host {
@@ -76,6 +79,9 @@ impl Host {
             fail_get: false,
             puts: 0,
             version: 100,
+            account_name: Some("测试账号名称".into()),
+            fail_accounts: false,
+            account_lookups: 0,
         };
         let manifest = Manifest::from_author_slice(include_bytes!("../plugin.json")).unwrap();
         host.send(
@@ -268,6 +274,42 @@ impl Host {
                 }
                 "host.middleware.body_close" => {
                     self.respond(id, json!({}), Vec::new()).await;
+                }
+                "host.data.accounts.list" => {
+                    self.account_lookups += 1;
+                    assert_eq!(params, json!({}));
+                    let query: Value = serde_json::from_slice(&frame.payload).unwrap();
+                    assert_eq!(query["limit"], 200);
+                    if self.fail_accounts {
+                        self.send(
+                            Message::Error {
+                                id,
+                                error: PluginFault::new(ErrorCode::Fault, "测试账号查询失败"),
+                            },
+                            Vec::new(),
+                        )
+                        .await;
+                        return;
+                    }
+                    // 目标放在第二页，确认页面名称关联遵守宿主游标
+                    let second = query["cursor"] == "account-before";
+                    let accounts = if second {
+                        self.account_name.as_ref().map(|name| vec![json!({
+                            "account_id":"account-test","provider_id":"openai","name":name,
+                            "email":"test@example.test","enabled":false,"group_ids":[],"updated_at_ms":0
+                        })]).unwrap_or_default()
+                    } else {
+                        vec![json!({
+                            "account_id":"account-before","provider_id":"openai","name":"其他账号",
+                            "email":null,"enabled":true,"group_ids":[],"updated_at_ms":0
+                        })]
+                    };
+                    let payload = serde_json::to_vec(&json!({
+                        "schema_version":1,"accounts":accounts,
+                        "next_cursor":if second {None} else {Some("account-before")}
+                    }))
+                    .unwrap();
+                    self.respond(id, json!({}), payload).await;
                 }
                 "host.http.dispatch" => {
                     self.lookups += 1;
@@ -1089,4 +1131,35 @@ async fn a_delayed_completion_does_not_recreate_a_block_after_manual_release() {
             .any(|record| record["requestId"] == "request-new-hit"
                 && record["releasedAtMs"].is_null())
     );
+}
+
+#[tokio::test]
+async fn history_resolves_current_names_and_keeps_records_when_accounts_are_missing() {
+    let mut host = Host::start(State::new()).await;
+    // 空历史无需查询账号列表
+    let (_, empty) = host.management(3, "GET", "history", "", None).await;
+    assert!(empty["records"].as_array().unwrap().is_empty());
+    assert_eq!(host.account_lookups, 0);
+    let mut host = Host::start(State::new()).await;
+    host.hit().await;
+    let (_, named) = host.management(5, "GET", "history", "", None).await;
+    assert_eq!(named["records"][0]["accountName"], "测试账号名称");
+    assert_eq!(named["records"][0]["accountId"], "account-test");
+    assert_eq!(host.account_lookups, 2);
+    host.account_name = Some("修改后的名称".into());
+    let (_, renamed) = host.management(7, "GET", "history", "", None).await;
+    assert_eq!(renamed["records"][0]["accountName"], "修改后的名称");
+    host.account_name = Some("".into());
+    let (_, unnamed) = host.management(9, "GET", "history", "", None).await;
+    assert_eq!(unnamed["records"][0]["accountName"], "test@example.test");
+    host.account_name = None;
+    let (_, deleted) = host.management(11, "GET", "history", "", None).await;
+    assert!(deleted["records"][0]["accountName"].is_null());
+    assert_eq!(deleted["records"][0]["accountId"], "account-test");
+    host.fail_accounts = true;
+    let (response, failed) = host.management(13, "GET", "history", "", None).await;
+    assert_eq!(response["status"], 200);
+    assert_eq!(failed["records"].as_array().unwrap().len(), 1);
+    assert!(failed["records"][0]["accountName"].is_null());
+    assert_eq!(host.records().len(), 1);
 }
