@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BlockRecord } from '../api/modules/history'
+import { groupText } from '../groups'
 
 defineProps<{ record: BlockRecord }>()
 </script>
@@ -18,6 +19,22 @@ defineProps<{ record: BlockRecord }>()
         API Key ID
       </dt><dd class="mt-1 break-all font-mono text-z-xs">
         {{ record.clientKeyId }}
+      </dd>
+    </div>
+    <div>
+      <dt class="text-z-text-secondary">
+        触发分组
+      </dt>
+      <dd class="mt-1 break-words">
+        {{ groupText(record) }}
+      </dd>
+    </div>
+    <div v-if="record.routingGroupRefs.length">
+      <dt class="text-z-text-secondary">
+        触发分组 ID
+      </dt>
+      <dd class="mt-1 break-all font-mono text-z-xs">
+        {{ record.routingGroupRefs.join('、') || '未记录' }}
       </dd>
     </div>
     <div>

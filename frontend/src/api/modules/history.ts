@@ -5,6 +5,9 @@ export type BlockStatus = 'active' | 'expired' | 'released'
 
 /** 一次命中对应的持久记录，时间展示文本由后端生成 */
 export interface BlockRecord {
+  routingScope: string | null
+  routingGroupRefs: string[]
+  routingGroupNamesSnapshot: string[]
   id: string
   sessionHash: string
   clientKeyId: string
@@ -81,6 +84,7 @@ export async function releaseBlock(record: BlockRecord): Promise<void> {
 
 function record(value: unknown): value is BlockRecord {
   return isObject(value)
+    && [value.routingGroupRefs, value.routingGroupNamesSnapshot].every(groups => Array.isArray(groups) && groups.every(group => typeof group === 'string'))
     && [
       'id',
       'sessionHash',
@@ -91,6 +95,7 @@ function record(value: unknown): value is BlockRecord {
       'expiresTimeDisplay',
     ].every(key => typeof value[key] === 'string')
     && [
+      'routingScope',
       'accountId',
       'accountName',
       'accountEmail',

@@ -2,6 +2,7 @@
 
 mod app;
 mod management;
+mod routing;
 mod settings;
 
 use std::{error::Error, sync::Arc};

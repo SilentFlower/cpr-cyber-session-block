@@ -1144,10 +1144,19 @@ async fn history_resolves_current_names_and_keeps_records_when_accounts_are_miss
     assert_eq!(host.account_lookups, 0);
     let mut host = Host::start(State::new()).await;
     host.hit().await;
+    host.usage.insert("request-one".into(), json!({"requestId":"request-one","clientApiKeyId":"key-test","routingScope":"groups","routingGroupRefs":["group-old","group-other"],"routingGroupNamesSnapshot":["历史 VIP","协作组"]}));
     let (_, named) = host.management(5, "GET", "history", "", None).await;
     assert_eq!(named["records"][0]["accountName"], "测试账号名称");
     assert_eq!(named["records"][0]["accountEmail"], "test@example.test");
     assert_eq!(named["records"][0]["accountId"], "account-test");
+    assert_eq!(
+        named["records"][0]["routingGroupNamesSnapshot"],
+        json!(["历史 VIP", "协作组"])
+    );
+    assert_eq!(
+        named["records"][0]["routingGroupRefs"],
+        json!(["group-old", "group-other"])
+    );
     assert_eq!(host.account_lookups, 2);
     host.account_name = Some("修改后的名称".into());
     let (_, renamed) = host.management(7, "GET", "history", "", None).await;
@@ -1176,5 +1185,16 @@ async fn history_resolves_current_names_and_keeps_records_when_accounts_are_miss
     assert_eq!(response["status"], 200);
     assert_eq!(failed["records"].as_array().unwrap().len(), 1);
     assert!(failed["records"][0]["accountName"].is_null());
+    host.usage.get_mut("request-one").unwrap()["clientApiKeyId"] = json!("another-key");
+    let (_, foreign) = host.management(19, "GET", "history", "", None).await;
+    assert!(foreign["records"][0]["routingScope"].is_null());
+    assert_eq!(foreign["records"][0]["routingGroupRefs"], json!([]));
+    host.usage.remove("request-one");
+    let (_, missing) = host.management(21, "GET", "history", "", None).await;
+    assert!(missing["records"][0]["routingScope"].is_null());
+    host.usage.insert("request-one".into(), json!({"requestId":"request-one","clientApiKeyId":"key-test","routingScope":"all","routingGroupRefs":[],"routingGroupNamesSnapshot":[]}));
+    let (_, global) = host.management(23, "GET", "history", "", None).await;
+    assert_eq!(global["records"][0]["routingScope"], "all");
+    assert_eq!(global["records"][0]["routingGroupRefs"], json!([]));
     assert_eq!(host.records().len(), 1);
 }

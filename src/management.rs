@@ -21,7 +21,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_slice, json, to_value, to_vec};
 use time::{OffsetDateTime, UtcOffset, format_description::well_known::Rfc3339};
 
-use crate::app::{App, wall_ms};
+use crate::{
+    app::{App, wall_ms},
+    routing,
+};
 
 /// 只解除页面读取的精确记录，不能按会话摘要批量解除
 #[derive(Deserialize)]
@@ -38,6 +41,8 @@ struct Entry {
     #[serde(flatten)]
     record: Record,
     status: &'static str,
+    #[serde(flatten)]
+    routing: routing::Routing,
     account_name: Option<String>,
     account_email: Option<String>,
     created_time_utc: String,
@@ -204,10 +209,18 @@ async fn history(app: &App, call: &TypedCall<ManagementRequest>) -> Result<Value
         .skip(offset)
         .take(limit as usize)
         .collect();
-    let profiles = account_profiles(&call.host, &records).await;
+    let requests: Vec<_> = records
+        .iter()
+        .map(|r| (r.request_id.clone(), r.client_key_id.clone()))
+        .collect();
+    let (profiles, groups) = tokio::join!(
+        account_profiles(&call.host, &records),
+        routing::load(&call.host, &requests)
+    );
     let records: Vec<Entry> = records
         .into_iter()
         .map(|record| Entry {
+            routing: groups.get(&record.request_id).cloned().unwrap_or_default(),
             status: record.status(now),
             account_name: record
                 .account_id

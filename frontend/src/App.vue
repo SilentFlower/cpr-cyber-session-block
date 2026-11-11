@@ -8,6 +8,7 @@ import { configurationWriteState } from './api/request'
 import RecordDetails from './components/RecordDetails.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import { useBlockHistory } from './composables/useBlockHistory'
+import { groupText } from './groups'
 
 const { snapshot, loading, releasingId, error, releaseUncertain, disabled, load, release } = useBlockHistory()
 const query = shallowRef<HistoryQuery>({
@@ -79,6 +80,7 @@ const columns: TableColumn<BlockRecord>[] = [
     kind: 'identity',
     minWidth: 190,
   },
+  { key: 'routingGroups', label: '触发分组', minWidth: 150 },
   {
     key: 'accountId',
     label: '触发账号',
@@ -213,6 +215,9 @@ function details(id: string) {
                 {{ row.model ?? '未知模型' }}
               </div>
             </div>
+          </template>
+          <template #routingGroups="{ row }">
+            <span class="block truncate text-z-xs" :title="groupText(row)">{{ groupText(row) }}</span>
           </template>
           <template #accountId="{ row }">
             <div class="min-w-0 space-y-1" :title="row.accountId ?? undefined">

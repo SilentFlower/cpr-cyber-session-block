@@ -3,7 +3,7 @@
   "publisher": "silentflower",
   "name": "cyber-session-block",
   "displayName": "Cyber 会话封禁",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "cyber_policy 命中后的会话限时封禁与记录",
   "license": "Apache-2.0",
   "engines": { "codex-proxy-rs": ">=3.43.0" },
