@@ -40,6 +40,34 @@ fn turn_metadata_has_the_same_precedence_as_the_existing_session_plugin() {
 }
 
 #[test]
+fn current_frame_identity_precedes_stale_handshake_metadata() {
+    let headers = [MiddlewareHeader {
+        name: "x-codex-turn-metadata".into(),
+        value: br#"{"session_id":"handshake"}"#.to_vec(),
+    }];
+    let body = br#"{"client_metadata":{"x-codex-turn-metadata":"{\"session_id\":\"frame\"}"}}"#;
+    let actual = identify("key-a", &headers, body).unwrap();
+    let expected = identify("key-a", &[], br#"{"session_id":"frame"}"#).unwrap();
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn explicit_client_identity_precedes_turn_metadata() {
+    let headers = [MiddlewareHeader {
+        name: "x-codex-turn-metadata".into(),
+        value: br#"{"session_id":"handshake"}"#.to_vec(),
+    }];
+    let actual = identify(
+        "key-a",
+        &headers,
+        br#"{"client_metadata":{"session_id":"root"}}"#,
+    )
+    .unwrap();
+    let expected = identify("key-a", &[], br#"{"session_id":"root"}"#).unwrap();
+    assert_eq!(actual, expected);
+}
+
+#[test]
 fn native_continuation_still_uses_the_explicit_session_identity() {
     let headers = vec![MiddlewareHeader {
         name: "session-id".into(),

@@ -1,6 +1,6 @@
 # 开发与构建
 
-Rust 依赖公开 `gateway-plugin-sdk`，固定到宿主提交 `1a2a4a56aed0a9660f173cb1d125b9728e2f214c`；不依赖宿主 Core、Provider 或 Store。Rust 工具链为 1.99.1，前端使用 Vue 3、TypeScript、Vite 与固定发布包 `@codex-proxy/ui` v0.8.0
+Rust 依赖公开 `gateway-plugin-sdk`，固定到宿主提交 `38446e8a0c1745b59b4c7cc2407f3ff5ff3cd77a`；不依赖宿主 Core、Provider 或 Store。Rust 工具链为 1.99.1，前端使用 Vue 3、TypeScript、Vite 与固定发布包 `@codex-proxy/ui` v0.8.0
 
 ```bash
 cargo fmt --check

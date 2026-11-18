@@ -17,7 +17,11 @@ pub struct Identity {
 #[derive(Default, Deserialize)]
 struct Metadata {
     session_id: Option<String>,
-    #[serde(rename = "x-codex-turn-metadata", alias = "turn_metadata")]
+    #[serde(
+        rename = "x-codex-turn-metadata",
+        alias = "turn_metadata",
+        alias = "turnMetadata"
+    )]
     turn_metadata: Option<String>,
 }
 
@@ -66,11 +70,13 @@ pub fn identify(
     let body: Envelope = serde_json::from_slice(body).ok()?;
     let client = body.client_metadata.as_ref();
     let context = body.context.as_ref();
-    let session = turn_session(header(headers, "x-codex-turn-metadata"))
-        .or_else(|| text(client.and_then(|value| value.session_id.as_deref())).map(str::to_owned))
+    // 当前正文的逻辑身份优先，握手元数据可能属于连接建立时的旧轮次
+    let session = text(client.and_then(|metadata| metadata.session_id.as_deref()))
+        .map(str::to_owned)
         .or_else(|| turn_session(body.turn_metadata.as_deref()))
-        .or_else(|| turn_session(client.and_then(|value| value.turn_metadata.as_deref())))
-        .or_else(|| turn_session(context.and_then(|value| value.turn_metadata.as_deref())))
+        .or_else(|| turn_session(client.and_then(|metadata| metadata.turn_metadata.as_deref())))
+        .or_else(|| turn_session(header(headers, "x-codex-turn-metadata")))
+        .or_else(|| turn_session(context.and_then(|metadata| metadata.turn_metadata.as_deref())))
         .or_else(|| text(body.session_id.as_deref()).map(str::to_owned))
         .or_else(|| header(headers, "session-id").map(str::to_owned))
         .or_else(|| text(context.and_then(|value| value.session_id.as_deref())).map(str::to_owned))

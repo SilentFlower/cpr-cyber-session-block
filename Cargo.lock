@@ -37,7 +37,7 @@ checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
 name = "cpr-cyber-session-block"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "form_urlencoded",
  "gateway-plugin-sdk",
@@ -130,7 +130,7 @@ dependencies = [
 [[package]]
 name = "gateway-plugin-sdk"
 version = "0.1.0"
-source = "git+https://github.com/SilentFlower/codex-proxy-rs.git?rev=1a2a4a56aed0a9660f173cb1d125b9728e2f214c#1a2a4a56aed0a9660f173cb1d125b9728e2f214c"
+source = "git+https://github.com/SilentFlower/codex-proxy-rs.git?rev=38446e8a0c1745b59b4c7cc2407f3ff5ff3cd77a#38446e8a0c1745b59b4c7cc2407f3ff5ff3cd77a"
 dependencies = [
  "base64",
  "semver",

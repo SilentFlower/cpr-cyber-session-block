@@ -2143,7 +2143,7 @@ DEALINGS IN THE SOFTWARE.
 ========================================================================
 依赖：gateway-plugin-sdk 0.1.0
 许可证：Apache-2.0
-来源：git+https://github.com/SilentFlower/codex-proxy-rs.git?rev=1a2a4a56aed0a9660f173cb1d125b9728e2f214c#1a2a4a56aed0a9660f173cb1d125b9728e2f214c
+来源：git+https://github.com/SilentFlower/codex-proxy-rs.git?rev=38446e8a0c1745b59b4c7cc2407f3ff5ff3cd77a#38446e8a0c1745b59b4c7cc2407f3ff5ff3cd77a
 
 --- LICENSE ---
                                  Apache License
