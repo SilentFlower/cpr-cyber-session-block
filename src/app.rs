@@ -393,7 +393,12 @@ impl App {
         {
             return Ok(TypedReply::new(Empty {}));
         }
-        if evidence.account_id != completed.account_id
+        // 重试耗尽时完成通知可以省略账号，真实上游归属以冻结的尝试和原生错误明细交叉核实
+        if evidence.account_id.is_none()
+            || completed
+                .account_id
+                .as_ref()
+                .is_some_and(|account| Some(account) != evidence.account_id.as_ref())
             || evidence.attempt_index != Some(completed.terminal.attempt_count)
         {
             return Err(fault(ErrorCode::InvalidInput, "请求完成观察尝试归属不匹配"));
@@ -530,6 +535,29 @@ impl App {
             && !state.captured.load(Ordering::Acquire)
         {
             let evidence = state.evidence();
+            // 发送后的 HTTP 拒绝可能在响应流内出现，next 返回句柄时尚无错误码
+            // 在换号覆盖尝试归属前保存待核实项，只有原生记录确认命中才停止重试
+            if call.request.provider == "openai"
+                && call
+                    .request
+                    .upstream_status
+                    .is_some_and(|status| (400..500).contains(&status))
+                && evidence.attempt_index == Some(call.request.attempt_index)
+                && evidence.account_id.is_some()
+                && let Err(error) = self
+                    .repository
+                    .defer(
+                        &call.host,
+                        Pending {
+                            evidence: evidence.clone(),
+                            observed_at_ms: wall_ms(),
+                            block_seconds: self.config.block_seconds,
+                        },
+                    )
+                    .await
+            {
+                report(&call.host, &call.request.request_id, &error).await;
+            }
             match self
                 .reconcile(&call.host, Some(&evidence.identity.session_hash), None)
                 .await

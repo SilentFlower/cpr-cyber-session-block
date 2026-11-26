@@ -705,6 +705,32 @@ async fn normal_responses_preserve_large_terminal_frames_without_body_reads() {
 }
 
 #[tokio::test]
+async fn retry_confirms_the_upstream_attempt_after_a_response_handle_was_returned() {
+    for (code, decision) in [("cyber_policy", "stop"), ("fixture_forbidden", "delegate")] {
+        let mut host = Host::start(State::new()).await;
+        host.model(1, "request-stream", false, "key-test", "http_json", INPUT)
+            .await;
+        host.wait_next(1).await;
+        host.model(3, "request-stream", true, "key-test", "http_json", INPUT)
+            .await;
+        host.wait_next(3).await;
+        host.finish_next(3, Some(VecDeque::new())).await;
+        host.result(3).await;
+        host.end(3).await;
+        host.usage.insert("request-stream".into(), detail(code));
+        host.call(5, Stage::Retry, "policy.retry_decision", Some("request-stream"), json!({
+            "request_id":"request-stream","attempt_index":1,"provider":"openai","model":"test-model",
+            "error_kind":"invalid_request","upstream_status":403,"send_state":"sent",
+            "remaining_routing_attempts":2,"remaining_deadline_ms":1000,"allowed_actions":["stop","retry"]
+        }), Vec::new()).await;
+        assert_eq!(host.result(5).await.0, json!({"decision":decision}));
+        assert_eq!(host.records().len(), usize::from(code == "cyber_policy"));
+        assert!(host.pending().is_empty());
+        assert_eq!(host.body_reads, 0);
+    }
+}
+
+#[tokio::test]
 async fn completed_failure_confirms_the_original_code_once_after_opaque_delivery() {
     let mut host = Host::start(State::new()).await;
     host.deferred().await;
@@ -1044,6 +1070,8 @@ async fn a_finished_failed_request_is_blocked_from_its_original_completion_time(
     host.usage
         .insert("request-stream".into(), detail("cyber_policy"));
     let mut event = completion("request-stream", "failed");
+    // 换号耗尽时终态不带账号，仍须用已冻结的尝试归属核实上游错误
+    event["data"]["account_id"] = Value::Null;
     let completed_at = event["data"]["completed_at_ms"].as_u64().unwrap() - 5000;
     event["data"]["completed_at_ms"] = json!(completed_at);
     host.call(
